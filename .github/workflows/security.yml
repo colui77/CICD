@@ -1,0 +1,59 @@
+name: DevSecOps Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  security-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # 1. Scarica il codice
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    # 2. Prepara Python
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    # 3. Installa i tool di sicurezza e le dipendenze
+    - name: Install Security Tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit pip-audit
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    # 4. SCA Check (Librerie vecchie)
+    - name: 📦 SCA - Check Vulnerable Dependencies
+      continue-on-error: true
+      run: |
+        # Controlla se esiste il file prima di scansionarlo
+        if [ -f requirements.txt ]; then
+          pip-audit -r requirements.txt
+        else
+          echo "No requirements.txt found, skipping SCA"
+        fi
+
+    # 5. SAST Check (Codice insicuro)
+    - name: 🔍 SAST - Python Code Scan (Bandit)
+      continue-on-error: true
+      run: |
+        # Scansiona tutto tranne i test e le cartelle nascoste
+        bandit -r . -ll --exclude ./tests
+
+    # 6. Secret Scanning (Chiavi AWS/Password)
+    - name: 🔑 Secret Scan
+      run: |
+        # Cerca "AKIA" (chiavi AWS) ma ignora la cartella .github (questo file) e .git
+        # Se trova qualcosa, grep ritorna 0 e l'if entra nel blocco errore
+        if grep -r "AKIA" . --exclude-dir={.git,.github}; then
+          echo "CRITICAL: AWS Key found in code!"
+          exit 1
+        else
+          echo "No secrets found."
+        fi
