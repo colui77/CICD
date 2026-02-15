@@ -1,24 +1,19 @@
 import os
 import subprocess
-# import shlex  <-- Non serve se usiamo la lista in subprocess
 from flask import Flask, request
- 
+
 app = Flask(__name__)
- 
-# FIX 1: Usa Variabile d'Ambiente (Niente segreti nel codice!)
-AWS_KEY = os.environ.get("AWS_ACCESS_KEY_ID") 
- 
+
+# VIOLAZIONE 1: Hardcoded Secret (CWE-798)
+AWS_KEY = "AKIA1234567890SECRET" 
+
 @app.route('/ping')
 def ping():
+    # VIOLAZIONE 2: Command Injection (CWE-78)
     address = request.args.get('address')
- 
-    if not address or ";" in address:
-        return "Invalid address", 400
- 
-    try:
-        # FIX 2: Niente shell=True, usa una lista di argomenti
-        subprocess.run(["ping", "-c", "1", address], check=True)
-    except Exception:
-        return "Ping failed"
- 
+    # Bandit odierà questa riga: shell=True
+    subprocess.call("ping -c 1 " + address, shell=True) 
     return "Ping sent!"
+
+if __name__ == '__main__':
+    app.run()

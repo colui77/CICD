@@ -1,4 +1,4 @@
-flask>=2.0
+flask==0.12  # VULNERABILE! (CVE note)
 requests
 bandit
 pip-audit
